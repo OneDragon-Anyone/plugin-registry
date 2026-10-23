@@ -1,0 +1,27 @@
+---
+import AppLayout from "@/layouts/AppLayout.astro";
+import PluginApp from "@/components/app/PluginApp";
+import { getPlugin, getPlugins } from "@/lib/data";
+import { withBase } from "@/lib/utils";
+
+export async function getStaticPaths() {
+  const plugins = await getPlugins();
+  return plugins.map((plugin) => ({
+    params: { id: plugin.id },
+    props: { plugin }
+  }));
+}
+
+const plugin = Astro.props.plugin ?? (await getPlugin(Astro.params.id ?? ""));
+
+if (!plugin) {
+  return Astro.redirect(withBase("/"));
+}
+---
+
+<AppLayout
+  title={`${plugin.name} · ZZZOD Plugins`}
+  description={plugin.summary}
+>
+  <PluginApp client:load plugin={plugin} />
+</AppLayout>

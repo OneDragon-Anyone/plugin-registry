@@ -1,0 +1,48 @@
+---
+import "../styles.css";
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const {
+  title,
+  description = "ZZZ OneDragon 插件仓库：发现、安装与提交 ZZZOD 插件。"
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="zh-CN" class="dark" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#f3f3f3" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#202020" media="(prefers-color-scheme: dark)" />
+    <title>{title}</title>
+    <script is:inline>
+      (function () {
+        try {
+          var saved = localStorage.getItem("zzzod-theme");
+          var mode =
+            saved === "light" || saved === "dark"
+              ? saved
+              : window.matchMedia("(prefers-color-scheme: light)").matches
+                ? "light"
+                : "dark";
+          var root = document.documentElement;
+          root.classList.toggle("dark", mode === "dark");
+          root.dataset.theme = mode;
+          root.style.colorScheme = mode;
+        } catch (_) {
+          /* 保持服务端默认的深色 */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

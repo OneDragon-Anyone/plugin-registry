@@ -1,0 +1,70 @@
+name: Reusable Validate Registry
+
+on:
+  workflow_call:
+
+jobs:
+  validate:
+    # 名称即数据仓 ruleset 中的必需检查；机器人 PR 由提交机器人写入同名 commit status
+    name: registry/validate
+    runs-on: ubuntu-latest
+    steps:
+      # pull_request 事件下默认检出数据仓的 PR 合并提交
+      - name: Checkout data repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout tools
+        uses: actions/checkout@v6
+        with:
+          repository: OneDragon-Anyone/plugin-registry
+          ref: v1
+          path: .tools
+          persist-credentials: false
+
+      - name: Checkout template tools
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ vars.TEMPLATE_REPOSITORY || 'OneDragon-Anyone/plugin-template' }}
+          ref: ${{ vars.TEMPLATE_REF || 'v1' }}
+          path: .plugin-template
+          persist-credentials: false
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Setup pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.15.1 --activate
+
+      - name: Install dependencies
+        working-directory: .tools
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Astro types
+        working-directory: .tools
+        run: pnpm exec astro sync
+
+      - name: Type check
+        working-directory: .tools
+        run: pnpm check
+
+      - name: Validate registry entries
+        working-directory: .tools
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REGISTRY_DATA_DIR: ${{ github.workspace }}
+          TEMPLATE_DIR: ${{ github.workspace }}/.plugin-template
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          changed=$(git -C "$GITHUB_WORKSPACE" diff --name-only --diff-filter=AM "$BASE_SHA" HEAD -- 'registry/plugins/*.json' \
+            | xargs -r -n1 basename | sed 's/\.json$//' | paste -sd, -)
+          pnpm registry:check --resolve --deep "$changed"

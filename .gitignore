@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Astro / build output
+.astro/
+dist/
+
+# Generated registry API
+public/api/
+
+# CI working directories
+.lock/
+.plugin-template/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Local env
+.env
+.env.*
+!.env.example
+
+# Editors
+.idea/
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db

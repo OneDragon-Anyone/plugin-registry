@@ -1,0 +1,14 @@
+---
+import AppLayout from "@/layouts/AppLayout.astro";
+import MarketApp from "@/components/app/MarketApp";
+import { getPlugins } from "@/lib/data";
+
+const plugins = await getPlugins();
+---
+
+<AppLayout
+  title="插件市场 · ZZZOD Plugins"
+  description="发现、安装与提交 ZZZ OneDragon 插件。"
+>
+  <MarketApp client:load plugins={plugins} />
+</AppLayout>

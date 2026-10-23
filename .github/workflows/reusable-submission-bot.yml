@@ -1,0 +1,61 @@
+name: Reusable Submission Bot
+
+on:
+  workflow_call:
+
+env:
+  BASE_PATH: ${{ vars.SITE_BASE_PATH || '/plugin-data' }}
+
+jobs:
+  bot:
+    runs-on: ubuntu-latest
+    steps:
+      # 始终检出数据仓默认分支；pull_request_target 下也不运行 PR 中的代码
+      - name: Checkout data repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Checkout tools
+        uses: actions/checkout@v6
+        with:
+          repository: OneDragon-Anyone/plugin-registry
+          ref: v1
+          path: .tools
+          persist-credentials: false
+
+      - name: Checkout template tools
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ vars.TEMPLATE_REPOSITORY || 'OneDragon-Anyone/plugin-template' }}
+          ref: ${{ vars.TEMPLATE_REF || 'v1' }}
+          path: .plugin-template
+          persist-credentials: false
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Setup pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.15.1 --activate
+
+      - name: Install dependencies
+        working-directory: .tools
+        run: pnpm install --frozen-lockfile
+
+      - name: Run submission bot
+        working-directory: .tools
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REGISTRY_DATA_DIR: ${{ github.workspace }}
+          TEMPLATE_DIR: ${{ github.workspace }}/.plugin-template
+          REGISTRY_BASE_BRANCH: ${{ github.event.repository.default_branch }}
+          REGISTRY_SITE_URL: ${{ vars.SITE_URL || format('https://{0}.github.io', github.repository_owner) }}${{ env.BASE_PATH }}/
+        run: pnpm registry:bot
