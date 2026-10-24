@@ -1,6 +1,7 @@
 ---
 import AppLayout from "@/layouts/AppLayout.astro";
 import PluginApp from "@/components/app/PluginApp";
+import { extractFluentStyles } from "@/lib/fluent-ssr";
 import { getPlugin, getPlugins } from "@/lib/data";
 import { withBase } from "@/lib/utils";
 
@@ -17,11 +18,14 @@ const plugin = Astro.props.plugin ?? (await getPlugin(Astro.params.id ?? ""));
 if (!plugin) {
   return Astro.redirect(withBase("/"));
 }
+
+const islandStyles = extractFluentStyles(PluginApp, { plugin });
 ---
 
 <AppLayout
   title={`${plugin.name} · ZZZOD Plugins`}
   description={plugin.summary}
+  islandStyles={islandStyles}
 >
   <PluginApp client:load plugin={plugin} />
 </AppLayout>

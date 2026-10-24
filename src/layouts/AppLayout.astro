@@ -15,11 +15,14 @@ const themeTokens = [
 interface Props {
   title: string;
   description?: string;
+  /** 页面 island 的 griffel 样式（extractFluentStyles 产出），首帧防 FOUC */
+  islandStyles?: string;
 }
 
 const {
   title,
-  description = "ZZZ OneDragon 插件仓库：发现、安装与提交 ZZZOD 插件。"
+  description = "ZZZ OneDragon 插件仓库：发现、安装与提交 ZZZOD 插件。",
+  islandStyles = ""
 } = Astro.props;
 ---
 
@@ -59,6 +62,7 @@ const {
         document.addEventListener("astro:after-swap", applyTheme);
       })();
     </script>
+    <Fragment set:html={islandStyles} />
   </head>
   <body>
     <slot />
