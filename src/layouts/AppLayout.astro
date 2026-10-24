@@ -1,5 +1,15 @@
 ---
 import "../styles.css";
+import { createCSSRuleFromTheme } from "@fluentui/react-components";
+import { win11Themes } from "@/theme/win11";
+
+// FluentProvider 的 token 样式由 React 在客户端注入，SSR 输出固定为深色：
+// 浅色用户从首帧到 hydration 完成之间，卡片、按钮等会先用深色 token 渲染再突然翻白。
+// 这里在构建期把两套 token 以 html class 作用域静态输出，首帧即与 html.dark 一致。
+const themeTokens = [
+  createCSSRuleFromTheme("html.dark .fui-FluentProvider", win11Themes.dark),
+  createCSSRuleFromTheme("html:not(.dark) .fui-FluentProvider", win11Themes.light)
+].join("\n");
 
 interface Props {
   title: string;
@@ -22,6 +32,7 @@ const {
     <meta name="theme-color" content="#f3f3f3" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#202020" media="(prefers-color-scheme: dark)" />
     <title>{title}</title>
+    <style is:inline set:html={themeTokens} />
     <script is:inline>
       (function () {
         try {
