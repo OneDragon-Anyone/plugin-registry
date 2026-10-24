@@ -6,6 +6,9 @@ export default defineConfig({
   site: process.env.SITE_URL ?? "https://onedragon-anyone.github.io",
   base: process.env.PUBLIC_BASE_PATH ?? "/plugin-data",
   output: "static",
+  prefetch: {
+    prefetchAll: true
+  },
   integrations: [
     react(),
     tailwind({
