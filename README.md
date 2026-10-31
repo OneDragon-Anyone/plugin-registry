@@ -1,9 +1,9 @@
-# ZZZOD Plugin Registry (代码仓)
+# ZZZOD 插件市场仓
 
-ZZZOD 插件应用中心的核心代码库，包含插件商店网页端（WebUI）、自动化收录机器人以及构建索引脚本。
+自动审核插件提交、定时构建索引、渲染市场网页，并把安装包镜像到国内下载源。
 
-- 🌐 **在线商店**：[https://onedragon-anyone.github.io/plugin-data/](https://onedragon-anyone.github.io/plugin-data/)
-- 📦 **插件数据仓**：[OneDragon-Anyone/plugin-data](https://github.com/OneDragon-Anyone/plugin-data)（存放插件审核配置与索引数据）
+- 🌐 **在线插件市场**：[https://onedragon-anyone.github.io/plugin-data/](https://onedragon-anyone.github.io/plugin-data/)
+- 📦 **配套数据仓**：[OneDragon-Anyone/plugin-data](https://github.com/OneDragon-Anyone/plugin-data)（存放插件收录配置与索引）
 
 ---
 
