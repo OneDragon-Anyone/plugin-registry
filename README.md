@@ -61,7 +61,7 @@ pnpm registry:build
 ```json
 "mirror": {
   "enabled": false,
-  "repo": "OneDragon-Anything/plugin-mirror",
+  "repo": "OneDragon-Anyone/plugin-mirror",
   "branch": "main",
   "keepReleases": 10
 }
