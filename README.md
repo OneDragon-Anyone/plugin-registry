@@ -48,7 +48,56 @@ pnpm registry:build
 
 ---
 
+## 插件包国内镜像（CNB）
+
+构建时可以把校验通过的插件 zip 原字节复制一份到 CNB 公开仓库，
+再把 `plugins.json` 里的 `downloadUrl` 指向 CNB，让国内用户直接走国内源。
+客户端无需改动 —— 非 `github.com` 地址会被判为 `direct` 直连。
+
+### 数据仓侧配置
+
+`registry/policy.json` 增加 `mirror` 块：
+
+```json
+"mirror": {
+  "enabled": false,
+  "repo": "OneDragon-Anything/plugin-mirror",
+  "branch": "main",
+  "keepReleases": 10
+}
+```
+
+`enabled: false` 时整段逻辑跳过，可安全灰度。
+
+### 密钥
+
+数据仓 Settings → Secrets 里加 `CNB_TOKEN`（对该镜像仓库有写权限）。
+调用方 workflow 需带 `secrets: inherit` 才会传进 reusable 工作流。
+
+可选环境变量：`CNB_MIRROR_REPO`、`CNB_API_ENDPOINT`、`CNB_MIRROR_BRANCH`。
+仓库必须**公开**，否则用户匿名下载不了。
+
+### 实现位置
+
+| 文件 | 职责 |
+|---|---|
+| `scripts/lib/cnb.ts` | CNB OpenAPI 客户端：查/建 release、建 tag、申请上传地址、PUT、确认、回读校验、清理旧附件 |
+| `scripts/build-registry.ts` | `publishMirror()` 新版本上传；`republishMirror()` 给缺镜像的旧版本补传 |
+| `src/lib/types.ts` | `RegistryPolicy.mirror`、`WarningCode.mirror_failed` |
+
+### 注意事项
+
+- **必须原字节上传**：客户端强制核对 sha256，重新打包会导致安装被拒
+- 上传后回读一次 `hash_value` 比对，不一致直接抛错，不写入产物
+- 幂等靠锁文件的 `mirrorUrl` 字段；单次上传失败只记 `mirror_failed` 告警并回落到
+  GitHub 原地址，下次构建自动补传
+- 完整 PRD 见主仓 `docs/develop/plugin_mirror_prd.md`
+
+---
+
 ## 版本与引用规范
 
-- 本仓库供数据仓引用的 GitHub Actions 统一遵循 `@v1` 稳定版本规范。
-- 日常功能改进与兼容修复直接维护在 `master` 分支并同步推进 `v1` 标签。
+- 本仓库供数据仓引用的 GitHub Actions 统一遵循 `@vN` 版本规范（当前 `v2`）。
+- 功能改进维护在 `master` 分支，确认稳定后推进对应的 `v2` 标签；
+  数据仓通过 tag 快照引用，因此"先合 registry → 再打 tag → 再切数据仓 `@vN`"
+  的顺序是安全的。

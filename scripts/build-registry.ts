@@ -16,6 +16,7 @@ import type {
 } from "../src/lib/types";
 import { type GhRelease, type GhRepo, github, githubText, listReleases, orNull, resolveTagCommit } from "./lib/github";
 import { renderSafeHtml } from "./lib/html";
+import { publishMirrorAsset, readMirrorTarget } from "./lib/cnb";
 import { checkEntries, readEntryFiles, readPolicy, rootDir } from "./lib/registry";
 import { downloadAndValidate } from "./lib/validator";
 
@@ -27,6 +28,8 @@ interface LockRelease {
   assetName: string;
   size: number;
   sha256: string;
+  /** 国内下载源的镜像地址 缺失时对外回落到 GitHub 原地址 */
+  mirrorUrl?: string;
   verifiedAt: string;
   hasAppSetting: boolean;
   cover: string;
@@ -125,6 +128,57 @@ async function fallbackEntry(
   };
 }
 
+async function publishMirror(
+  id: string,
+  version: string,
+  versionCode: number,
+  zipPath: string,
+  sha256: string,
+  policy: RegistryPolicy,
+  warnings: PluginWarning[]
+): Promise<string | undefined> {
+  const target = readMirrorTarget(policy);
+  if (target === null) return undefined;
+
+  try {
+    const result = await publishMirrorAsset(target, id, versionCode, zipPath, sha256);
+    if (result.pruned > 0) report.push(`- 🧹 \`${id}\` 清理了 ${result.pruned} 个旧镜像附件`);
+    report.push(`- 🪞 \`${id}\` ${version} 已镜像到 ${target.repo}`);
+    return result.url;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    warnings.push({
+      code: "mirror_failed",
+      message: `镜像到国内下载源失败，继续使用 GitHub 原地址：${message}`,
+      version
+    });
+    report.push(`- ⚠️ \`${id}\` ${version} 镜像失败: ${message}`);
+    return undefined;
+  }
+}
+
+async function republishMirror(
+  entry: RegistrySourceEntry,
+  tag: string,
+  locked: LockRelease,
+  asset: GhRelease["assets"][number],
+  workDir: string,
+  policy: RegistryPolicy,
+  warnings: PluginWarning[]
+): Promise<string | undefined> {
+  if (readMirrorTarget(policy) === null) return undefined;
+
+  const zipPath = join(workDir, `${entry.id}-${tag}-mirror.zip`);
+  const check = await downloadAndValidate(asset.browser_download_url, zipPath, {
+    expectId: entry.id,
+    expectTag: tag,
+    policy
+  });
+  if (!check.result.ok || check.sha256 !== locked.sha256) return undefined;
+
+  return await publishMirror(entry.id, locked.version, locked.versionCode, zipPath, check.sha256, policy, warnings);
+}
+
 async function acceptNewReleases(
   entry: RegistrySourceEntry,
   repo: GhRepo,
@@ -153,6 +207,9 @@ async function acceptNewReleases(
       if (changed) {
         warnings.push({ code: "asset_changed", message: `${tag} 的 ${assetName} 在收录后被替换或删除，继续使用收录时的记录`, version });
       }
+      if (locked.mirrorUrl === undefined && asset !== undefined) {
+        locked.mirrorUrl = await republishMirror(entry, tag, locked, asset, workDir, policy, warnings);
+      }
       continue;
     }
     if (!asset) {
@@ -180,9 +237,10 @@ async function acceptNewReleases(
     }
 
     const coverStem = join(workDir, `${entry.id}-${tag}-cover`);
+    const zipPath = join(workDir, `${entry.id}-${tag}.zip`);
     const { result, sha256, size } = await downloadAndValidate(
       asset.browser_download_url,
-      join(workDir, `${entry.id}-${tag}.zip`),
+      zipPath,
       { expectId: entry.id, expectTag: tag, policy, coverOut: coverStem }
     );
     if (!result.ok) {
@@ -196,6 +254,8 @@ async function acceptNewReleases(
       reject("version_not_increased", `${tag} 的 versionCode ${versionCode} 未大于已收录的 ${lock.maxVersionCode}`);
       continue;
     }
+
+    const mirrorUrl = await publishMirror(entry.id, version, versionCode, zipPath, sha256, policy, warnings);
 
     let cover = "";
     if (result.coverFile) {
@@ -212,6 +272,7 @@ async function acceptNewReleases(
       assetName,
       size,
       sha256,
+      mirrorUrl,
       verifiedAt: now.toISOString(),
       hasAppSetting: result.hasAppSetting,
       cover,
@@ -235,6 +296,7 @@ function toRelease(tag: string, locked: LockRelease, live: GhRelease, repo: GhRe
     publishedAt: publishedAt(live),
     changelogHtml: renderSafeHtml(live.body_html, repo.full_name, locked.commit),
     downloadUrl:
+      locked.mirrorUrl ??
       asset?.browser_download_url ??
       `https://github.com/${repo.full_name}/releases/download/${encodeURIComponent(tag)}/${locked.assetName}`,
     assetName: locked.assetName,

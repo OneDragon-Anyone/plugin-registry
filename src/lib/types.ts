@@ -20,7 +20,8 @@ export type WarningCode =
   | "missing_asset"
   | "invalid_package"
   | "repo_identity_changed"
-  | "repo_unreachable";
+  | "repo_unreachable"
+  | "mirror_failed";
 
 export interface PluginWarning {
   code: WarningCode;
@@ -116,6 +117,21 @@ export interface RegistrySourceEntry {
   };
 }
 
+export interface RegistryMirrorPolicy {
+  /** 是否启用国内下载源镜像 */
+  enabled: boolean;
+  /** 镜像附件存放的仓库 格式 组织名称/仓库名称 */
+  repo?: string;
+  /** CNB OpenAPI 地址 默认 https://api.cnb.cool */
+  api?: string;
+  /** 创建 tag 时指向的分支 默认 main */
+  branch?: string;
+  /** 镜像 tag 的前缀 默认直接以插件 id 作为 tag */
+  tagPrefix?: string;
+  /** 每个插件保留多少个历史版本的镜像 默认使用 keepReleases */
+  keepReleases?: number;
+}
+
 export interface RegistryPolicy {
   reservedIds: string[];
   bannedRepoIds: number[];
@@ -128,4 +144,6 @@ export interface RegistryPolicy {
     maxOpenSubmissionsPerUser: number;
     windowHours: number;
   };
+  /** 国内下载源镜像配置 未配置或关闭时行为与改造前一致 */
+  mirror?: RegistryMirrorPolicy;
 }
